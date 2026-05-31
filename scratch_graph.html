@@ -39,9 +39,9 @@
             <div id="searchResults"></div>
 
             <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:5px; margin-top:8px;">または一覧から切り替え：</label>
-            <div class="flex-box">
-                <select id="projectSelect" onchange="changeProject()"></select>
-                <button class="del-btn" onclick="deleteCurrentProject()">🗑️ 削除</button>
+            <div class="flex-box" style="align-items:center;">
+                <select id="projectSelect" onchange="changeProject()" style="min-width:0; flex:1;"></select>
+                <button class="del-btn" onclick="deleteCurrentProject()" style="flex-shrink:0;">🗑️ 削除</button>
             </div>
 
             <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:5px; margin-top:8px;">作品のURLを入力して登録：</label>
