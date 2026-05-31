@@ -14,37 +14,54 @@
         input[type="text"] { flex: 1; }
         .add-btn { background: #2ecc71; color: white; border: none; font-weight: bold; cursor: pointer; padding: 8px 15px; border-radius: 4px; white-space: nowrap; }
         .add-btn:hover { background: #27ae60; }
-        .del-btn { background: #e74c3c; color: white; border: none; font-weight: bold; cursor: pointer; padding: 8px 15px; border-radius: 4px; width: 100%; }
+        .del-btn { background: #e74c3c; color: white; border: none; font-weight: bold; cursor: pointer; padding: 6px 12px; border-radius: 4px; font-size: 12px; }
         .del-btn:hover { background: #c0392b; }
         .btn { background: #3498db; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-bottom: 10px; }
         .btn:hover { background: #2980b9; }
-        .info { color: #666; font-size: 13px; text-align: center; margin-bottom: 20px; font-weight: bold; }
+        .info { color: #666; font-size: 13px; text-align: center; margin-bottom: 5px; font-weight: bold; }
+        .info-box { background: #f1f2f6; border-radius: 6px; padding: 8px 12px; margin-bottom: 15px; font-size: 12px; color: #555; cursor: pointer; user-select: none; }
+        .info-content { margin-top: 6px; font-size: 12px; color: #333; word-break: break-all; display: none; }
         .graph-container { position: relative; width: 100%; height: 260px; border-left: 2px solid #ccc; border-bottom: 2px solid #ccc; box-sizing: border-box; margin-top: 10px; }
         svg { width: 100%; height: 100%; overflow: visible; }
         .tooltip { font-size: 10px; fill: #555; text-anchor: middle; }
-        #debugLog { background: #1a1a2e; color: #00ff88; font-family: monospace; font-size: 12px; padding: 10px; border-radius: 6px; margin-top: 10px; min-height: 60px; white-space: pre-wrap; word-break: break-all; }
+        #debugLog { background: #1a1a2e; color: #00ff88; font-family: monospace; font-size: 12px; padding: 10px; border-radius: 6px; margin-top: 6px; min-height: 60px; white-space: pre-wrap; word-break: break-all; display: none; }
+        #searchInput { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
+        .search-result { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 13px; }
+        .search-result:hover { background: #e8f4fd; }
+        #searchResults { max-height: 180px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; display: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="selector-section">
-            <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:5px;">作品を切り替え：</label>
+            <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:5px;">作品を検索：</label>
+            <input type="text" id="searchInput" placeholder="作品名で検索..." oninput="searchProjects()">
+            <div id="searchResults"></div>
+
+            <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:5px; margin-top:8px;">または一覧から切り替え：</label>
             <div class="flex-box">
                 <select id="projectSelect" onchange="changeProject()"></select>
+                <button class="del-btn" onclick="deleteCurrentProject()">🗑️ 削除</button>
             </div>
-            <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:5px; margin-top:10px;">作品のURLを入力して登録：</label>
+
+            <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:5px; margin-top:8px;">作品のURLを入力して登録：</label>
             <div class="flex-box">
                 <input type="text" id="urlInput" placeholder="作品のURL（またはID数字）" oninput="autoFetchName()">
                 <input type="text" id="nameInput" placeholder="名前を自動取得...">
                 <button class="add-btn" onclick="addNewProjectManual()">追加</button>
             </div>
-            <button class="del-btn" onclick="deleteCurrentProject()">🗑️ 今選択中の作品をリストから削除</button>
         </div>
 
         <h3 id="currentTitle" style="margin-top:0; color:#2c3e50;">作品統計グラフ</h3>
         
         <button class="btn" onclick="fetchAllProjectsData()">🔄 登録されている全作品のデータを一括計測！</button>
-        <div id="status" class="info">上のボタンを押すと自動で数字を読み込みます</div>
+        <button class="btn" style="background:#8e44ad;" onclick="exportTxt()">📄 データをtxtに出力</button>
+
+        <!-- 計測結果（折りたたみ） -->
+        <div class="info-box" onclick="toggleStatus()">
+            <span id="statusLabel">📊 計測結果 ▶ 開く</span>
+            <div id="statusContent" class="info-content"></div>
+        </div>
         
         <div class="graph-container">
             <svg id="lineChart"></svg>
@@ -55,9 +72,10 @@
             <span style="color:#f1c40f;">● 星の数 (黄)</span>
         </div>
 
+        <!-- デバッグログ（折りたたみ） -->
         <div style="margin-top:15px;">
             <div onclick="toggleDebug()" style="font-size:12px; font-weight:bold; color:#555; cursor:pointer; user-select:none;">🔍 デバッグログ <span id="debugArrow">▶ 開く</span></div>
-            <div id="debugLog" style="display:none;">ここにログが表示されます...</div>
+            <div id="debugLog">ここにログが表示されます...</div>
         </div>
     </div>
     <script>
@@ -73,17 +91,68 @@
         function toggleDebug() {
             const log = document.getElementById("debugLog");
             const arrow = document.getElementById("debugArrow");
-            if (log.style.display === "none") {
-                log.style.display = "block";
-                arrow.textContent = "▼ 閉じる";
+            if (log.style.display === "none") { log.style.display = "block"; arrow.textContent = "▼ 閉じる"; }
+            else { log.style.display = "none"; arrow.textContent = "▶ 開く"; }
+        }
+
+        function toggleStatus() {
+            const content = document.getElementById("statusContent");
+            const label = document.getElementById("statusLabel");
+            const current = content.style.display;
+            if (current === "none" || current === "") {
+                content.style.display = "block";
+                label.textContent = label.textContent.replace("▶ 開く", "▼ 閉じる");
             } else {
-                log.style.display = "none";
-                arrow.textContent = "▶ 開く";
+                content.style.display = "none";
+                label.textContent = label.textContent.replace("▼ 閉じる", "▶ 開く");
             }
+        }
+
+        function setStatus(msg) {
+            const label = document.getElementById("statusLabel");
+            const content = document.getElementById("statusContent");
+            // ラベルに要約、内容に全文
+            const firstLine = msg.split('：[')[0];
+            const namesPart = msg.includes('：[') ? '：[ ' + msg.split('：[')[1] : '';
+            label.textContent = firstLine + (namesPart ? ' ▶ 開く' : '');
+            content.textContent = namesPart.replace('[ ', '').replace(']', '').split(', ').join('\n');
+            content.style.display = "none";
+            // ▶開くを正しく設定
+            if (namesPart) label.textContent = firstLine + ' ▶ 開く';
+            else label.textContent = firstLine;
         }
 
         function proxyUrl(apiUrl) {
             return `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+        }
+
+        function searchProjects() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const resultsDiv = document.getElementById('searchResults');
+            if (!query) { resultsDiv.style.display = 'none'; return; }
+
+            const plist = JSON.parse(localStorage.getItem('scratch_project_list')) || [];
+            const matched = plist.filter(p => p.name.toLowerCase().includes(query) || p.id.includes(query));
+
+            if (matched.length === 0) { resultsDiv.style.display = 'none'; return; }
+
+            resultsDiv.innerHTML = '';
+            matched.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'search-result';
+                div.textContent = `${p.name} (${p.id})`;
+                div.onclick = () => {
+                    currentProjectId = String(p.id);
+                    localStorage.setItem('scratch_last_selected_id', currentProjectId);
+                    document.getElementById('projectSelect').value = currentProjectId;
+                    document.getElementById('currentTitle').innerText = `${p.name} (${p.id})`;
+                    document.getElementById('searchInput').value = '';
+                    resultsDiv.style.display = 'none';
+                    drawChart();
+                };
+                resultsDiv.appendChild(div);
+            });
+            resultsDiv.style.display = 'block';
         }
 
         window.onload = function() {
@@ -117,7 +186,6 @@
             });
         }
 
-        // URLが入力されたら自動で作品名を取得
         function autoFetchName() {
             clearTimeout(autoFetchTimer);
             const urlText = document.getElementById('urlInput').value.trim();
@@ -132,15 +200,9 @@
                     const res = await fetch(proxyUrl(`https://api.scratch.mit.edu/projects/${id}`));
                     if (!res.ok) throw new Error();
                     const data = await res.json();
-                    if (data && data.title) {
-                        nameInput.value = data.title;
-                        nameInput.placeholder = '作品名（変更可）';
-                    } else {
-                        nameInput.placeholder = '取得失敗（手動入力）';
-                    }
-                } catch(e) {
-                    nameInput.placeholder = '取得失敗（手動入力）';
-                }
+                    if (data && data.title) { nameInput.value = data.title; nameInput.placeholder = '作品名（変更可）'; }
+                    else { nameInput.placeholder = '取得失敗（手動入力）'; }
+                } catch(e) { nameInput.placeholder = '取得失敗（手動入力）'; }
             }, 600);
         }
 
@@ -168,7 +230,7 @@
                 document.getElementById('projectSelect').value = currentProjectId;
                 changeProject();
                 urlInput.value = ''; nameInput.value = ''; nameInput.placeholder = '名前を自動取得...';
-                document.getElementById('status').innerText = `✅ 「${nameText}」を新しくリストに登録しました！`;
+                setStatus(`✅ 「${nameText}」を新しくリストに登録しました！`);
                 fetchAllProjectsData();
             } else {
                 alert('この作品は既に登録されています！');
@@ -197,7 +259,7 @@
                 document.getElementById('currentTitle').innerText = '作品統計グラフ';
             }
             drawChart();
-            document.getElementById('status').innerText = '🗑️ 削除しました';
+            setStatus('🗑️ 削除しました');
         }
 
         function changeProject() {
@@ -211,7 +273,6 @@
         }
 
         async function fetchAllProjectsData() {
-            const statusDiv = document.getElementById('status');
             const select = document.getElementById('projectSelect');
             document.getElementById('debugLog').textContent = '--- 計測開始 ---';
 
@@ -227,9 +288,9 @@
             }
 
             dlog(`対象作品数: ${plist.length}`);
-            if (plist.length === 0) { statusDiv.innerText = "⚠️ 登録されている作品がありません。"; return; }
+            if (plist.length === 0) { setStatus("⚠️ 登録されている作品がありません。"); return; }
 
-            statusDiv.innerText = `⏳ 公式サーバーから ${plist.length} 個の作品を直接計測中...`;
+            setStatus(`⏳ 公式サーバーから ${plist.length} 個の作品を直接計測中...`);
             let successCount = 0;
             let logNames = [];
 
@@ -271,7 +332,7 @@
                 }
             }));
 
-            statusDiv.innerText = `✅ 計測完了！次の ${successCount} 個のグラフを更新しました：[ ${logNames.join(', ')} ]`;
+            setStatus(`✅ 計測完了！次の ${successCount} 個のグラフを更新しました：[ ${logNames.join(', ')} ]`);
             drawChart();
         }
 
@@ -345,6 +406,52 @@
             text.setAttribute('x', x); text.setAttribute('y', y);
             text.className.baseVal = 'tooltip'; text.setAttribute('fill', color);
             text.textContent = textContent; svg.appendChild(text);
+        }
+        function exportTxt() {
+            const plist = JSON.parse(localStorage.getItem('scratch_project_list')) || [];
+            if (plist.length === 0) { alert('登録されている作品がありません。'); return; }
+
+            // 全作品のデータを取得し、全日付を収集
+            const allDataMap = {};
+            const allDatesSet = new Set();
+            plist.forEach(p => {
+                const key = `scratch_history_${p.id}`;
+                const data = JSON.parse(localStorage.getItem(key)) || [];
+                allDataMap[p.id] = {};
+                data.forEach(record => {
+                    allDataMap[p.id][record.date] = record;
+                    allDatesSet.add(record.date);
+                });
+            });
+
+            // 日付を昇順ソート
+            const allDates = Array.from(allDatesSet).sort();
+
+            // 各作品ごとに出力を作成
+            const blocks = plist.map(p => {
+                let lines = [p.name];
+                allDates.forEach(date => {
+                    const record = allDataMap[p.id][date];
+                    if (record) {
+                        lines.push(String(record.views));
+                        lines.push(String(record.loves));
+                        lines.push(String(record.favorites));
+                    } else {
+                        // この作品がまだ追加されていなかった日 → 空行3つ
+                        lines.push('');
+                        lines.push('');
+                        lines.push('');
+                    }
+                });
+                return lines.join('\n');
+            });
+
+            const output = blocks.join('\n\n');
+            const blob = new Blob([output], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'scratch_stats.txt';
+            a.click();
         }
     </script>
 </body>
