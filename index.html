@@ -125,7 +125,23 @@
         function proxyUrl(apiUrl) {
             return `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
         }
+async function sendStatus(data){
 
+    await fetch(
+        "https://api.github.com/repos/Fudi-scratch/scratch-tracker/dispatches",
+        {
+            method:"POST",
+            headers:{
+                "Accept":"application/vnd.github+json"
+            },
+            body:JSON.stringify({
+                event_type:"update-status",
+                client_payload:data
+            })
+        }
+    );
+
+}
         function searchProjects() {
             const query = document.getElementById('searchInput').value.trim().toLowerCase();
             const resultsDiv = document.getElementById('searchResults');
@@ -332,9 +348,22 @@
                 }
             }));
 
-            setStatus(`✅ 計測完了！次の ${successCount} 個のグラフを更新しました：[ ${logNames.join(', ')} ]`);
-            saveStatusJson();
-            drawChart();
+setStatus(`✅ 計測完了！次の ${successCount} 個のグラフを更新しました：[ ${logNames.join(', ')} ]`);
+
+const status = {
+    update: new Date().toISOString(),
+    projects: plist.map(p => ({
+        id: p.id,
+        name: p.name,
+        data: JSON.parse(
+            localStorage.getItem(`scratch_history_${p.id}`)
+        ) || []
+    }))
+};
+
+sendStatus(status);
+
+drawChart();
         }
 
         function drawChart() {
